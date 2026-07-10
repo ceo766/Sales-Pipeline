@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SD Ceilings — Sales Pipeline Daily Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#1F3864; --navy2:#2E4E8C; --gold:#BF8F00; --gold-light:#FFF2CC;
+    --bg:#F1F4F9; --card:#FFFFFF; --text:#1a2233; --muted:#6b7280;
+    --green:#1e7e34; --green-bg:#DFF3E3; --red:#b02a37; --red-bg:#FBE2E4;
+    --border:#e2e6ee;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);}
+  /* ---------- Login gate ---------- */
+  #loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,var(--navy),#0f1e3d);
+    display:flex;align-items:center;justify-content:center;z-index:999;}
+  .login-box{background:var(--card);padding:36px 40px;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.35);
+    width:340px;text-align:center;}
+  .login-box h1{font-size:18px;margin:0 0 4px;color:var(--navy);}
+  .login-box p{font-size:13px;color:var(--muted);margin:0 0 20px;}
+  .login-box input{width:100%;padding:11px 12px;font-size:15px;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;}
+  .login-box button{width:100%;padding:11px;font-size:15px;font-weight:bold;color:#fff;background:var(--navy);
+    border:none;border-radius:8px;cursor:pointer;}
+  .login-box button:hover{background:var(--navy2);}
+  .login-error{color:var(--red);font-size:13px;height:16px;margin-top:8px;}
+
+  /* ---------- App shell ---------- */
+  #app{display:none;min-height:100vh;}
+  header{background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  header h1{font-size:17px;margin:0;font-weight:bold;}
+  header .sub{font-size:11px;opacity:.75;margin-top:2px;}
+  .tabbar{display:flex;gap:6px;}
+  .tabbar button{background:rgba(255,255,255,.12);color:#fff;border:none;padding:9px 18px;border-radius:8px;
+    font-size:13px;font-weight:bold;cursor:pointer;}
+  .tabbar button.active{background:var(--gold);color:#1a1a1a;}
+
+  main{padding:20px 24px 60px;max-width:1400px;margin:0 auto;}
+
+  /* ---------- Entry subnav & forms ---------- */
+  .entry-subnav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+  .entry-subnav button{padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:#fff;
+    font-size:12.5px;font-weight:bold;color:var(--navy);cursor:pointer;}
+  .entry-subnav button.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  .card{background:var(--card);border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(20,30,60,.06);
+    margin-bottom:20px;border:1px solid var(--border);}
+  .card h2{margin:0 0 4px;font-size:16px;color:var(--navy);}
+  .card .desc{font-size:12px;color:var(--muted);margin-bottom:16px;}
+
+  .field-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:12px;font-weight:bold;color:#333;}
+  .field input, .field select, .field textarea{padding:9px 10px;border:1px solid var(--border);border-radius:7px;
+    font-size:13.5px;font-family:inherit;}
+  .field textarea{resize:vertical;min-height:60px;grid-column:1/-1;}
+  .submit-row{margin-top:18px;display:flex;align-items:center;gap:14px;}
+  .btn-primary{background:var(--navy);color:#fff;border:none;padding:11px 26px;border-radius:8px;
+    font-size:14px;font-weight:bold;cursor:pointer;}
+  .btn-primary:hover{background:var(--navy2);}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+  .save-msg{font-size:13px;font-weight:bold;}
+  .save-msg.ok{color:var(--green);}
+  .save-msg.err{color:var(--red);}
+
+  /* ---------- Dashboard ---------- */
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:20px;}
+  .kpi{background:var(--card);border-radius:12px;padding:16px 18px;border:1px solid var(--border);box-shadow:0 1px 4px rgba(20,30,60,.06);}
+  .kpi.highlight{background:linear-gradient(135deg,var(--gold-light),#fff);border:2px solid var(--gold);}
+  .kpi .label{font-size:11.5px;color:var(--muted);font-weight:bold;text-transform:uppercase;letter-spacing:.03em;}
+  .kpi .value{font-size:26px;font-weight:bold;color:var(--navy);margin-top:4px;}
+  .kpi.highlight .value{color:var(--gold);}
+  .kpi .sub{font-size:11px;color:var(--muted);margin-top:2px;}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:bold;margin-top:6px;}
+  .badge.ok{background:var(--green-bg);color:var(--green);}
+  .badge.bad{background:var(--red-bg);color:var(--red);}
+
+  .section-title{font-size:16px;font-weight:bold;color:var(--navy);margin:28px 0 12px;padding-bottom:6px;
+    border-bottom:2px solid var(--navy);}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  @media (max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+  .chart-box{background:var(--card);border-radius:12px;padding:16px 18px;border:1px solid var(--border);box-shadow:0 1px 4px rgba(20,30,60,.06);}
+  .chart-box h3{margin:0 0 10px;font-size:13.5px;color:var(--navy);}
+  .chart-box canvas{max-height:260px;}
+
+  table.data-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.data-table th, table.data-table td{padding:7px 9px;border-bottom:1px solid var(--border);text-align:center;}
+  table.data-table th{background:var(--navy);color:#fff;font-size:11px;text-align:center;position:sticky;top:0;}
+  table.data-table td:first-child, table.data-table th:first-child{text-align:left;}
+  table.data-table tr:nth-child(even){background:#fafbfd;}
+  .table-scroll{overflow-x:auto;}
+
+  .refresh-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .btn-ghost{background:#fff;border:1px solid var(--border);color:var(--navy);padding:7px 14px;border-radius:8px;
+    font-size:12.5px;font-weight:bold;cursor:pointer;}
+  .last-updated{font-size:11.5px;color:var(--muted);}
+
+  #toast{position:fixed;bottom:20px;right:20px;background:var(--navy);color:#fff;padding:12px 18px;border-radius:8px;
+    font-size:13px;font-weight:bold;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transform:translateY(10px);
+    transition:.25s;pointer-events:none;z-index:1000;}
+  #toast.show{opacity:1;transform:translateY(0);}
+  #toast.err{background:var(--red);}
+
+  .loading{text-align:center;color:var(--muted);padding:40px;font-size:13px;}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>SD Ceilings</h1>
+    <p>Sales Pipeline Daily Report — staff access</p>
+    <input type="password" id="loginPassword" placeholder="Enter password" autofocus>
+    <button onclick="tryLogin()">Enter</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <header>
+    <div>
+      <h1>SD Ceilings — Sales Pipeline Daily Report</h1>
+      <div class="sub" id="todayLabel"></div>
+    </div>
+    <div class="tabbar">
+      <button id="tabEntryBtn" class="active" onclick="showView('entry')">📝 Data Entry</button>
+      <button id="tabDashBtn" onclick="showView('dashboard')">📊 Dashboard</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ---------- DATA ENTRY VIEW ---------- -->
+    <section id="entryView">
+      <div class="entry-subnav" id="entrySubnav"></div>
+      <div id="entryForms"></div>
+    </section>
+
+    <!-- ---------- DASHBOARD VIEW ---------- -->
+    <section id="dashboardView" style="display:none">
+      <div class="refresh-row">
+        <div class="last-updated" id="lastUpdated">Loading data…</div>
+        <button class="btn-ghost" onclick="loadData(true)">🔄 Refresh now</button>
+      </div>
+      <div id="dashboardContent"><div class="loading">Loading dashboard…</div></div>
+    </section>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* =========================================================================
+   CONFIGURATION — edit these two lines before publishing the site
+   ========================================================================= */
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFWBu-3ujTSyoSeuxs18z_G49taggP4hm547YlYRuiz-cClERnvULi_HFl6Ze2LshyUQ/execPASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+const SITE_PASSWORD   = "sdceilings2026";
+
+/* =========================================================================
+   REFERENCE LISTS (must match Code.gs / the Excel workbook)
+   ========================================================================= */
+const LEAD_SOURCES = [
+  "Instagram – Ceilings","Instagram – Profiles","Phone Calls – Kathleen","WhatsApp – Kathleen",
+  "Phone Calls – Natalia","WhatsApp – Natalia","Office Landline",
+  "Email – info@sdceilings.com (Responsible: Natalia)","Email – sales@sdceilings.com (Responsible: Kathleen)",
+  "Visited Office","Showroom Invitations Sent","Email Presentations Sent – Natalia",
+  "Email Presentations Sent – Kathleen","WhatsApp Presentations Sent – Natalia","WhatsApp Presentations Sent – Kathleen"
+];
+const CLIENT_TYPES = ["B2B Clients","B2C Clients","Export (Outgoing)","Supply Only Materials – UAE","Dealers (Dealer Inquiries Worldwide)"];
+const COLD_OUTREACH_CHANNELS = ["Instagram – Stretch Ceilings (Responsible: Natalia)","Instagram – Profiles (Responsible: Natalia)","LinkedIn (Responsible: Kathleen)","Facebook (Responsible: Kathleen)"];
+const DM_CHANNELS = ["Instagram Direct Messages","LinkedIn Direct Messages","Facebook Direct Messages"];
+const REVIEW_EMPLOYEES = ["Kathleen","Natalia","Kate"];
+const SALES_EXECUTIVES = ["Stanislav","Stepan","Yasmin","Shibili","Shakir","Anastasia","Natalia","New Sales One","New Sales Two","Kathleen (Administrator)","Natalia (Administrator)"];
+const SPL_METRICS = ["Hot Leads Received","Quotations Sent by Email","Quotation Value (AED)","Quotations Correct","Quotations Incorrect","Sales Result (AED)","Cold WhatsApp Messages","Cold Phone Calls","Client Meetings","Presentations (Large Strategic Projects)"];
+
+const TARGETS = {
+  followupDaily: 10,
+  coldOutreachDaily: 10,
+  presentationsMonthly: 8,
+  likesCommentsDaily: 8,
+  dmDaily: 5,
+  googleReviewsWeekly: 2
+};
+
+/* =========================================================================
+   FORM SCHEMA — one entry per Google Sheet tab
+   ========================================================================= */
+function numField(key){ return {key:key, label:key, type:'number'}; }
+
+const SCHEMA = [
+  { id:'daily_log', sheet:'Daily_Log', icon:'📋', title:'Daily Log — Lead Sources & Follow-up',
+    desc:'One row per day. Enter today\'s counts for each lead source.',
+    fields:[{key:'Date',label:'Date',type:'date'}]
+      .concat(LEAD_SOURCES.map(numField))
+      .concat([numField('Follow-up – Kathleen'), numField('Follow-up – Natalia')]) },
+
+  { id:'client_type', sheet:'Client_Type_Log', icon:'🧾', title:'Client Type Log',
+    desc:'Inquiries received today, by client type.',
+    fields:[{key:'Date',label:'Date',type:'date'}].concat(CLIENT_TYPES.map(numField)) },
+
+  { id:'cold_outreach', sheet:'Cold_Outreach_Log', icon:'📣', title:'Cold Outreach, Reviews & Content',
+    desc:'Social outreach, Google reviews and videographer tasks for today.',
+    fields:[{key:'Date',label:'Date',type:'date'}]
+      .concat(COLD_OUTREACH_CHANNELS.map(numField))
+      .concat([numField('Likes & Comments')])
+      .concat(DM_CHANNELS.map(numField))
+      .concat(REVIEW_EMPLOYEES.map(function(e){ return numField('Google Reviews – '+e); }))
+      .concat([numField('Video Tasks Created')]) },
+
+  { id:'sales_performance', sheet:'Sales_Performance_Log', icon:'💼', title:'Sales Performance Log',
+    desc:'One entry per Sales Executive per day — the single source of truth for hot leads passed to Sales.',
+    fields:[{key:'Date',label:'Date',type:'date'},
+      {key:'Sales Executive',label:'Sales Executive',type:'select',options:SALES_EXECUTIVES}]
+      .concat(SPL_METRICS.map(numField)) },
+
+  { id:'contact_db', sheet:'Contact_Databases', icon:'📇', title:'Contact Databases for Marketing',
+    desc:'Update the current size of the WhatsApp or MailChimp contact list.',
+    fields:[
+      {key:'Date',label:'Date',type:'date'},
+      {key:'Type',label:'Database',type:'select',options:['WhatsApp','MailChimp']},
+      {key:'Total Contacts',label:'Total Contacts',type:'number'},
+      {key:'Updated By',label:'Updated By',type:'text'}
+    ] },
+
+  { id:'after_sales', sheet:'After_Sales_Service', icon:'🎁', title:'After Sales Service',
+    desc:'Add one entry per client once their project reaches final payment.',
+    fields:[
+      {key:'Date Added',label:'Date Added',type:'date'},
+      {key:'Client Name',label:'Client Name',type:'text'},
+      {key:'Contact Details',label:'Contact Details',type:'text'},
+      {key:'Ceiling Type Installed',label:'Ceiling Type Installed',type:'text'},
+      {key:'Client Contacted (Yes/No)',label:'Client Contacted',type:'select',options:['Yes','No']},
+      {key:'Gift Sent (Yes/No)',label:'Gift Sent',type:'select',options:['Yes','No']},
+      {key:'Date Gift Sent',label:'Date Gift Sent',type:'date'},
+      {key:'Comments / Client Feedback',label:'Comments / Client Feedback',type:'textarea'}
+    ] }
+];
+
+/* =========================================================================
+   LOGIN
+   ========================================================================= */
+function tryLogin(){
+  const pw = document.getElementById('loginPassword').value;
+  if(pw === SITE_PASSWORD){
+    sessionStorage.setItem('sdc_authed','1');
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('app').style.display='block';
+    initApp();
+  } else {
+    document.getElementById('loginError').textContent = 'Incorrect password.';
+  }
+}
+document.getElementById('loginPassword').addEventListener('keydown', function(e){ if(e.key==='Enter') tryLogin(); });
+if(sessionStorage.getItem('sdc_authed')==='1'){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  window.addEventListener('DOMContentLoaded', initApp);
+}
+
+/* =========================================================================
+   APP INIT / TABS
+   ========================================================================= */
+function initApp(){
+  document.getElementById('todayLabel').textContent = 'Today: ' + todayISO();
+  buildEntryNav();
+  buildEntryForm(SCHEMA[0].id);
+  loadData(false);
+}
+
+function showView(view){
+  document.getElementById('entryView').style.display = view==='entry' ? 'block' : 'none';
+  document.getElementById('dashboardView').style.display = view==='dashboard' ? 'block' : 'none';
+  document.getElementById('tabEntryBtn').classList.toggle('active', view==='entry');
+  document.getElementById('tabDashBtn').classList.toggle('active', view==='dashboard');
+  if(view==='dashboard') loadData(false);
+}
+
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+/* =========================================================================
+   ENTRY FORM RENDERING
+   ========================================================================= */
+function buildEntryNav(){
+  const nav = document.getElementById('entrySubnav');
+  nav.innerHTML = SCHEMA.map(function(s,i){
+    return '<button id="pill_'+s.id+'" class="'+(i===0?'active':'')+'" onclick="buildEntryForm(\''+s.id+'\')">'+s.icon+' '+s.title.split(' — ')[0]+'</button>';
+  }).join('');
+}
+
+let currentFieldRefs = [];
+
+function buildEntryForm(sectionId){
+  SCHEMA.forEach(function(s){
+    const el = document.getElementById('pill_'+s.id);
+    if(el) el.classList.toggle('active', s.id===sectionId);
+  });
+  const section = SCHEMA.find(function(s){ return s.id===sectionId; });
+  currentFieldRefs = [];
+  const fieldsHtml = section.fields.map(function(f, idx){
+    const elId = 'f_'+idx;
+    currentFieldRefs.push({key:f.key, elId:elId, type:f.type});
+    let inputHtml;
+    if(f.type==='select'){
+      inputHtml = '<select id="'+elId+'">' + f.options.map(function(o){ return '<option value="'+o+'">'+o+'</option>'; }).join('') + '</select>';
+    } else if(f.type==='textarea'){
+      inputHtml = '<textarea id="'+elId+'"></textarea>';
+    } else if(f.type==='date'){
+      inputHtml = '<input type="date" id="'+elId+'" value="'+todayISO()+'">';
+    } else if(f.type==='number'){
+      inputHtml = '<input type="number" id="'+elId+'" value="0" min="0" step="1">';
+    } else {
+      inputHtml = '<input type="text" id="'+elId+'">';
+    }
+    return '<div class="field"><label>'+f.label+'</label>'+inputHtml+'</div>';
+  }).join('');
+
+  document.getElementById('entryForms').innerHTML =
+    '<div class="card">' +
+      '<h2>'+section.icon+' '+section.title+'</h2>' +
+      '<div class="desc">'+section.desc+'</div>' +
+      '<div class="field-grid">'+fieldsHtml+'</div>' +
+      '<div class="submit-row">' +
+        '<button class="btn-primary" id="submitBtn" onclick="submitEntry(\''+section.sheet+'\')">Save Entry</button>' +
+        '<span class="save-msg" id="saveMsg"></span>' +
+      '</div>' +
+    '</div>';
+}
+
+function submitEntry(sheetName){
+  const data = {};
+  currentFieldRefs.forEach(function(f){
+    const el = document.getElementById(f.elId);
+    data[f.key] = f.type==='number' ? Number(el.value || 0) : el.value;
+  });
+  const btn = document.getElementById('submitBtn');
+  const msg = document.getElementById('saveMsg');
+  btn.disabled = true;
+  msg.textContent = 'Saving…';
+  msg.className = 'save-msg';
+
+  fetch(APPS_SCRIPT_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ sheet: sheetName, data: data })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(res){
+    btn.disabled = false;
+    if(res.status==='ok'){
+      msg.textContent = '✓ Saved to Google Sheets';
+      msg.className = 'save-msg ok';
+      showToast('Entry saved');
+      currentFieldRefs.forEach(function(f){
+        if(f.type==='number') document.getElementById(f.elId).value = 0;
+        if(f.type==='textarea') document.getElementById(f.elId).value = '';
+      });
+    } else {
+      msg.textContent = 'Error: '+res.message;
+      msg.className = 'save-msg err';
+      showToast('Save failed — check APPS_SCRIPT_URL', true);
+    }
+  })
+  .catch(function(err){
+    btn.disabled = false;
+    msg.textContent = 'Network error — is APPS_SCRIPT_URL set?';
+    msg.className = 'save-msg err';
+    showToast('Network error', true);
+  });
+}
+
+function showToast(text, isErr){
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.className = 'show' + (isErr ? ' err' : '');
+  setTimeout(function(){ t.className = ''; }, 2600);
+}
+
+/* =========================================================================
+   DASHBOARD DATA LOADING
+   ========================================================================= */
+let DATA = null;
+let charts = {};
+
+function loadData(manual){
+  if(manual) document.getElementById('dashboardContent').innerHTML = '<div class="loading">Refreshing…</div>';
+  fetch(APPS_SCRIPT_URL)
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      DATA = json;
+      document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+      renderDashboard();
+    })
+    .catch(function(err){
+      document.getElementById('dashboardContent').innerHTML =
+        '<div class="loading">Could not load data. Check that APPS_SCRIPT_URL is set correctly and the Apps Script is deployed with access "Anyone".</div>';
+    });
+}
+
+/* ---- date helpers ---- */
+function parseDate(v){
+  if(!v) return null;
+  const d = new Date(v);
+  if(isNaN(d.getTime())) return null;
+  d.setHours(0,0,0,0);
+  return d;
+}
+function today0(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
+function startOfWeek(d){ const day=(d.getDay()+6)%7; const r=new Date(d); r.setDate(d.getDate()-day); return r; }
+function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+function inRange(d, from, to){ return d && d.getTime()>=from.getTime() && d.getTime()<=to.getTime(); }
+
+function sumRange(rows, dateKey, field, from, to){
+  return rows.reduce(function(acc,row){
+    const d = parseDate(row[dateKey]);
+    if(inRange(d, from, to)) acc += Number(row[field]) || 0;
+    return acc;
+  },0);
+}
+function countRange(rows, dateKey, field, matchVal, from, to){
+  return rows.reduce(function(acc,row){
+    const d = parseDate(row[dateKey]);
+    if(inRange(d, from, to) && String(row[field])===matchVal) acc += 1;
+    return acc;
+  },0);
+}
+function countNonBlank(rows, dateKey, field, from, to){
+  return rows.reduce(function(acc,row){
+    const d = parseDate(row[dateKey]);
+    if(inRange(d, from, to) && row[field] !== undefined && String(row[field]).trim()!=='') acc += 1;
+    return acc;
+  },0);
+}
+function fmt(n){ return Math.round(n).toLocaleString(); }
+function pct(n){ return (n*100).toFixed(1)+'%'; }
+function badge(ok){ return '<span class="badge '+(ok?'ok':'bad')+'">'+(ok?'On Target':'Below Target')+'</span>'; }
+
+/* =========================================================================
+   DASHBOARD RENDERING
+   ========================================================================= */
+function renderDashboard(){
+  const T = today0(), WS = startOfWeek(T), MS = startOfMonth(T);
+  const dl = DATA.Daily_Log || [], ctl = DATA.Client_Type_Log || [], col = DATA.Cold_Outreach_Log || [],
+        spl = DATA.Sales_Performance_Log || [], cdb = DATA.Contact_Databases || [], ass = DATA.After_Sales_Service || [];
+
+  let html = '';
+
+  /* ---- Highlighted: Total Sales Result across all executives ---- */
+  const srDaily = sumRange(spl,'Date','Sales Result (AED)', T, T);
+  const srMonthly = sumRange(spl,'Date','Sales Result (AED)', MS, T);
+  html += '<div class="kpi-row">';
+  html += kpiCard('TOTAL SALES RESULT — DAILY (AED)', fmt(srDaily), '', true);
+  html += kpiCard('TOTAL SALES RESULT — MONTHLY (AED)', fmt(srMonthly), '', true);
+  const hotLeadsDaily = sumRange(spl,'Date','Hot Leads Received', T, T);
+  const hotLeadsMonthly = sumRange(spl,'Date','Hot Leads Received', MS, T);
+  html += kpiCard('TRANSFERRED TO SALES — DAILY', fmt(hotLeadsDaily), 'Hot Leads Received (all executives)', false);
+  html += kpiCard('TRANSFERRED TO SALES — MONTHLY', fmt(hotLeadsMonthly), 'Hot Leads Received (all executives)', false);
+  html += '</div>';
+
+  /* ---- Lead Source ---- */
+  html += '<div class="section-title">Lead Source</div>';
+  const leadDaily = LEAD_SOURCES.map(function(s){ return sumRange(dl,'Date',s,T,T); });
+  const leadMonthly = LEAD_SOURCES.map(function(s){ return sumRange(dl,'Date',s,MS,T); });
+  const totalLeadsDaily = leadDaily.reduce(function(a,b){return a+b;},0);
+  const totalLeadsMonthly = leadMonthly.reduce(function(a,b){return a+b;},0);
+  html += '<div class="kpi-row">' +
+    kpiCard('TOTAL LEADS — DAILY', fmt(totalLeadsDaily), '', false) +
+    kpiCard('TOTAL LEADS — MONTHLY', fmt(totalLeadsMonthly), '', false) + '</div>';
+  html += '<div class="chart-box"><h3>Lead Source — Monthly totals</h3><canvas id="chartLeadSource"></canvas></div>';
+
+  /* ---- Follow-up ---- */
+  const fuDaily = sumRange(dl,'Date','Follow-up – Kathleen',T,T) + sumRange(dl,'Date','Follow-up – Natalia',T,T);
+  const fuMonthly = sumRange(dl,'Date','Follow-up – Kathleen',MS,T) + sumRange(dl,'Date','Follow-up – Natalia',MS,T);
+  html += '<div class="section-title">Follow-up</div><div class="kpi-row">' +
+    kpiCard('FOLLOW-UP — DAILY', fmt(fuDaily), 'Target: '+TARGETS.followupDaily+'/day '+badge(fuDaily>=TARGETS.followupDaily), false) +
+    kpiCard('FOLLOW-UP — MONTHLY', fmt(fuMonthly), '', false) + '</div>';
+
+  /* ---- Client Type ---- */
+  html += '<div class="section-title">Client Type Summary</div>';
+  const ctMonthly = CLIENT_TYPES.map(function(s){ return sumRange(ctl,'Date',s,MS,T); });
+  html += '<div class="grid-2">' +
+    '<div class="chart-box"><h3>Client Type — Monthly share</h3><canvas id="chartClientType"></canvas></div>' +
+    tableBox('Client Type', CLIENT_TYPES, CLIENT_TYPES.map(function(s){return sumRange(ctl,'Date',s,T,T);}), ctMonthly) +
+    '</div>';
+
+  /* ---- Cold Outreach Activity ---- */
+  html += '<div class="section-title">Cold Outreach Activity</div>';
+  const coMonthly = COLD_OUTREACH_CHANNELS.map(function(s){ return sumRange(col,'Date',s,MS,T); });
+  const lcDaily = sumRange(col,'Date','Likes & Comments',T,T);
+  const lcMonthly = sumRange(col,'Date','Likes & Comments',MS,T);
+  html += '<div class="grid-2">' +
+    '<div class="chart-box"><h3>Channels — Monthly totals</h3><canvas id="chartColdOutreach"></canvas></div>' +
+    '<div class="chart-box"><h3>KPI snapshot</h3>' +
+      '<div class="kpi-row" style="margin-bottom:0">' +
+        kpiCard('LIKES & COMMENTS — DAILY', fmt(lcDaily), 'Target '+TARGETS.likesCommentsDaily+'/day '+badge(lcDaily>=TARGETS.likesCommentsDaily), false) +
+        kpiCard('LIKES & COMMENTS — MONTHLY', fmt(lcMonthly), '', false) +
+      '</div>' +
+    '</div>' +
+    '</div>';
+  html += '<div class="table-scroll"><table class="data-table"><thead><tr><th>Direct Message Channel</th><th>Daily</th><th>Monthly</th><th>Target</th><th>Status</th></tr></thead><tbody>' +
+    DM_CHANNELS.map(function(ch){
+      const d = sumRange(col,'Date',ch,T,T), m = sumRange(col,'Date',ch,MS,T);
+      return '<tr><td>'+ch+'</td><td>'+fmt(d)+'</td><td>'+fmt(m)+'</td><td>'+TARGETS.dmDaily+'</td><td>'+badge(d>=TARGETS.dmDaily)+'</td></tr>';
+    }).join('') + '</tbody></table></div>';
+
+  /* ---- Google Reviews ---- */
+  html += '<div class="section-title">Google Reviews</div>';
+  const grWeekly = REVIEW_EMPLOYEES.map(function(e){ return sumRange(col,'Date','Google Reviews – '+e,WS,T); });
+  const grMonthly = REVIEW_EMPLOYEES.map(function(e){ return sumRange(col,'Date','Google Reviews – '+e,MS,T); });
+  const grTotalWeekly = grWeekly.reduce(function(a,b){return a+b;},0);
+  html += '<div class="grid-2">' +
+    '<div class="chart-box"><h3>Reviews by employee (Weekly)</h3><canvas id="chartReviews"></canvas></div>' +
+    '<div class="chart-box"><h3>Team total vs. target</h3>' +
+      '<div class="kpi-row" style="margin-bottom:0">' +
+      kpiCard('THIS WEEK', fmt(grTotalWeekly), 'Target '+TARGETS.googleReviewsWeekly+'/week '+badge(grTotalWeekly>=TARGETS.googleReviewsWeekly), false) +
+      '</div></div>' +
+    '</div>';
+
+  /* ---- Content / Video Tasks ---- */
+  const vtWeekly = sumRange(col,'Date','Video Tasks Created',WS,T);
+  const vtMonthly = sumRange(col,'Date','Video Tasks Created',MS,T);
+  html += '<div class="section-title">Content / Video Tasks</div><div class="kpi-row">' +
+    kpiCard('VIDEO TASKS — WEEKLY', fmt(vtWeekly), '', false) +
+    kpiCard('VIDEO TASKS — MONTHLY', fmt(vtMonthly), '', false) + '</div>';
+
+  /* ---- Sales Performance Tracker ---- */
+  html += '<div class="section-title">Sales Performance Tracker (per Sales Executive)</div>';
+  html += '<div class="table-scroll"><table class="data-table"><thead><tr>' +
+    '<th>Sales Executive</th><th>Hot Leads (D)</th><th>Hot Leads (M)</th>' +
+    '<th>Quotes Sent (W)</th><th>Quotes Sent (M)</th>' +
+    '<th>Quote Value (W)</th><th>Quote Value (M)</th>' +
+    '<th>Correct (M)</th><th>Incorrect (M)</th>' +
+    '<th>Sales Result (D)</th><th>Sales Result (M)</th>' +
+    '<th>Sales Value % (M)</th>' +
+    '<th>Cold WA (D)</th><th>Cold WA (M)</th>' +
+    '<th>Cold Calls (D)</th><th>Cold Calls (M)</th>' +
+    '<th>Cold Outreach</th>' +
+    '<th>Meetings (D)</th><th>Meetings (M)</th>' +
+    '<th>Presentations (W)</th><th>Presentations (M)</th><th>Presentations</th>' +
+    '</tr></thead><tbody>';
+  let totals = {hlD:0,hlM:0,qsW:0,qsM:0,qvW:0,qvM:0,corM:0,incM:0,srD:0,srM:0,waD:0,waM:0,ccD:0,ccM:0,cmD:0,cmM:0,prW:0,prM:0};
+  SALES_EXECUTIVES.forEach(function(exec){
+    const rows = spl.filter(function(r){ return r['Sales Executive']===exec; });
+    const hlD = sumRange(rows,'Date','Hot Leads Received',T,T), hlM = sumRange(rows,'Date','Hot Leads Received',MS,T);
+    const qsW = sumRange(rows,'Date','Quotations Sent by Email',WS,T), qsM = sumRange(rows,'Date','Quotations Sent by Email',MS,T);
+    const qvW = sumRange(rows,'Date','Quotation Value (AED)',WS,T), qvM = sumRange(rows,'Date','Quotation Value (AED)',MS,T);
+    const corM = sumRange(rows,'Date','Quotations Correct',MS,T), incM = sumRange(rows,'Date','Quotations Incorrect',MS,T);
+    const srD = sumRange(rows,'Date','Sales Result (AED)',T,T), srM = sumRange(rows,'Date','Sales Result (AED)',MS,T);
+    const waD = sumRange(rows,'Date','Cold WhatsApp Messages',T,T), waM = sumRange(rows,'Date','Cold WhatsApp Messages',MS,T);
+    const ccD = sumRange(rows,'Date','Cold Phone Calls',T,T), ccM = sumRange(rows,'Date','Cold Phone Calls',MS,T);
+    const cmD = sumRange(rows,'Date','Client Meetings',T,T), cmM = sumRange(rows,'Date','Client Meetings',MS,T);
+    const prW = sumRange(rows,'Date','Presentations (Large Strategic Projects)',WS,T), prM = sumRange(rows,'Date','Presentations (Large Strategic Projects)',MS,T);
+    const svM = qvM>0 ? srM/qvM : 0;
+    const coldTotal = waD+ccD;
+    totals.hlD+=hlD; totals.hlM+=hlM; totals.qsW+=qsW; totals.qsM+=qsM; totals.qvW+=qvW; totals.qvM+=qvM;
+    totals.corM+=corM; totals.incM+=incM; totals.srD+=srD; totals.srM+=srM; totals.waD+=waD; totals.waM+=waM;
+    totals.ccD+=ccD; totals.ccM+=ccM; totals.cmD+=cmD; totals.cmM+=cmM; totals.prW+=prW; totals.prM+=prM;
+    html += '<tr><td>'+exec+'</td><td>'+fmt(hlD)+'</td><td>'+fmt(hlM)+'</td><td>'+fmt(qsW)+'</td><td>'+fmt(qsM)+'</td>'+
+      '<td>'+fmt(qvW)+'</td><td>'+fmt(qvM)+'</td><td>'+fmt(corM)+'</td><td>'+fmt(incM)+'</td>'+
+      '<td>'+fmt(srD)+'</td><td>'+fmt(srM)+'</td><td>'+pct(svM)+'</td>'+
+      '<td>'+fmt(waD)+'</td><td>'+fmt(waM)+'</td><td>'+fmt(ccD)+'</td><td>'+fmt(ccM)+'</td>'+
+      '<td>'+badge(coldTotal>=TARGETS.coldOutreachDaily)+'</td>'+
+      '<td>'+fmt(cmD)+'</td><td>'+fmt(cmM)+'</td><td>'+fmt(prW)+'</td><td>'+fmt(prM)+'</td>'+
+      '<td>'+badge(prM>=TARGETS.presentationsMonthly)+'</td></tr>';
+  });
+  const totalSV = totals.qvM>0 ? totals.srM/totals.qvM : 0;
+  html += '<tr style="font-weight:bold;background:var(--gold-light)"><td>Total / Company-wide</td><td>'+fmt(totals.hlD)+'</td><td>'+fmt(totals.hlM)+'</td>'+
+    '<td>'+fmt(totals.qsW)+'</td><td>'+fmt(totals.qsM)+'</td><td>'+fmt(totals.qvW)+'</td><td>'+fmt(totals.qvM)+'</td>'+
+    '<td>'+fmt(totals.corM)+'</td><td>'+fmt(totals.incM)+'</td><td>'+fmt(totals.srD)+'</td><td>'+fmt(totals.srM)+'</td>'+
+    '<td>'+pct(totalSV)+'</td><td>'+fmt(totals.waD)+'</td><td>'+fmt(totals.waM)+'</td><td>'+fmt(totals.ccD)+'</td><td>'+fmt(totals.ccM)+'</td>'+
+    '<td>'+badge((totals.waD+totals.ccD)>=TARGETS.coldOutreachDaily*SALES_EXECUTIVES.length)+'</td>'+
+    '<td>'+fmt(totals.cmD)+'</td><td>'+fmt(totals.cmM)+'</td><td>'+fmt(totals.prW)+'</td><td>'+fmt(totals.prM)+'</td>'+
+    '<td>'+badge(totals.prM>=TARGETS.presentationsMonthly*SALES_EXECUTIVES.length)+'</td></tr>';
+  html += '</tbody></table></div>';
+
+  html += '<div class="chart-box" style="margin-top:18px"><h3>Sales Result by Executive — Monthly (AED)</h3><canvas id="chartSalesByExec"></canvas></div>';
+
+  /* ---- Contact Databases for Marketing ---- */
+  html += '<div class="section-title">Contact Databases for Marketing</div>';
+  const latestOf = function(type){
+    const rows = cdb.filter(function(r){ return r.Type===type; });
+    if(!rows.length) return null;
+    return rows.reduce(function(best,r){
+      const d = parseDate(r.Date);
+      return (!best || (d && d.getTime()>parseDate(best.Date).getTime())) ? r : best;
+    });
+  };
+  const wa = latestOf('WhatsApp'), mc = latestOf('MailChimp');
+  html += '<div class="kpi-row">' +
+    kpiCard('WHATSAPP CONTACTS', wa ? fmt(Number(wa['Total Contacts'])) : '—', wa ? ('Updated by '+wa['Updated By']+' on '+wa.Date) : 'No data yet', false) +
+    kpiCard('MAILCHIMP EMAIL CONTACTS', mc ? fmt(Number(mc['Total Contacts'])) : '—', mc ? ('Updated by '+mc['Updated By']+' on '+mc.Date) : 'No data yet', false) +
+    '</div>';
+
+  /* ---- After Sales Service ---- */
+  html += '<div class="section-title">After Sales Service</div>';
+  const totalProjects = countNonBlank(ass,'Date Added','Client Name',MS,T);
+  const contacted = countRange(ass,'Date Added','Client Contacted (Yes/No)','Yes',MS,T);
+  const gifts = countRange(ass,'Date Added','Gift Sent (Yes/No)','Yes',MS,T);
+  html += '<div class="kpi-row">' +
+    kpiCard('PROJECTS WITH FINAL PAYMENT — MONTHLY', fmt(totalProjects), '', false) +
+    kpiCard('CLIENTS CONTACTED — MONTHLY', fmt(contacted), totalProjects? pct(contacted/totalProjects) : '', false) +
+    kpiCard('GIFTS SENT — MONTHLY', fmt(gifts), totalProjects? pct(gifts/totalProjects) : '', false) +
+    '</div>';
+
+  document.getElementById('dashboardContent').innerHTML = html;
+  renderCharts(leadMonthly, ctMonthly, coMonthly, grWeekly, totals);
+}
+
+function kpiCard(label, value, sub, highlight){
+  return '<div class="kpi'+(highlight?' highlight':'')+'"><div class="label">'+label+'</div><div class="value">'+value+'</div>' +
+    (sub ? '<div class="sub">'+sub+'</div>' : '') + '</div>';
+}
+function tableBox(title, labels, daily, monthly){
+  let rows = labels.map(function(l,i){ return '<tr><td>'+l+'</td><td>'+fmt(daily[i])+'</td><td>'+fmt(monthly[i])+'</td></tr>'; }).join('');
+  return '<div class="chart-box"><h3>'+title+' — figures</h3><div class="table-scroll"><table class="data-table">'+
+    '<thead><tr><th>'+title+'</th><th>Daily</th><th>Monthly</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+function renderCharts(leadMonthly, ctMonthly, coMonthly, grWeekly, totals){
+  Object.keys(charts).forEach(function(k){ charts[k].destroy(); });
+  charts = {};
+  const palette = ['#1F3864','#2E4E8C','#BF8F00','#4E7CC4','#8FA9D6','#D9A441','#6B7280','#A3B4D6','#C9A24B','#3B5A8A','#7E93BC','#E0C68A','#5C7BAA','#9BAFCD','#B58A3A'];
+
+  charts.leadSource = new Chart(document.getElementById('chartLeadSource'), {
+    type:'bar',
+    data:{ labels:LEAD_SOURCES, datasets:[{ label:'Monthly', data:leadMonthly, backgroundColor:'#1F3864' }] },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', plugins:{legend:{display:false}} }
+  });
+  document.getElementById('chartLeadSource').parentElement.style.height='420px';
+
+  charts.clientType = new Chart(document.getElementById('chartClientType'), {
+    type:'doughnut',
+    data:{ labels:CLIENT_TYPES, datasets:[{ data:ctMonthly, backgroundColor:palette }] },
+    options:{ responsive:true, maintainAspectRatio:false }
+  });
+
+  charts.coldOutreach = new Chart(document.getElementById('chartColdOutreach'), {
+    type:'bar',
+    data:{ labels:COLD_OUTREACH_CHANNELS.map(function(c){return c.split(' (')[0];}), datasets:[{ label:'Monthly', data:coMonthly, backgroundColor:'#2E4E8C' }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
+  });
+
+  charts.reviews = new Chart(document.getElementById('chartReviews'), {
+    type:'bar',
+    data:{ labels:REVIEW_EMPLOYEES, datasets:[{ label:'This week', data:grWeekly, backgroundColor:'#BF8F00' }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
+  });
+
+  charts.salesByExec = new Chart(document.getElementById('chartSalesByExec'), {
+    type:'bar',
+    data:{ labels:SALES_EXECUTIVES, datasets:[{ label:'Sales Result (AED) — Monthly',
+      data:SALES_EXECUTIVES.map(function(exec){
+        const rows = (DATA.Sales_Performance_Log||[]).filter(function(r){ return r['Sales Executive']===exec; });
+        return sumRange(rows,'Date','Sales Result (AED)', startOfMonth(today0()), today0());
+      }), backgroundColor:'#1F3864' }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
+  });
+  document.getElementById('chartSalesByExec').parentElement.style.height='340px';
+}
+</script>
+</body>
+</html>
